@@ -237,6 +237,58 @@ mlx_vlm.generate \
 ```
 *(M1 Max 32G Performance: ~14.93 generation tokens/sec, Peak memory: 19.44 GB)*
 
+### Local OpenAI API Server
+
+```bash
+# 启动本地服务，默认运行在 8080 端口
+python -m mlx_vlm.server \
+--model "mlx-community/gemma-4-31b-it-4bit" \
+--port 8080 \
+--host 0.0.0.0
+```
+
+Test via curl:
+```bash
+curl http://127.0.0.1:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer not-needed" \
+  -d '{
+    "model": "mlx-community/gemma-4-31b-it-4bit",
+    "messages": [
+      {
+        "role": "user",
+        "content": "Hello! Are you running as an OpenAI compatible API?"
+      }
+    ],
+    "temperature": 0.4,
+    "max_tokens": 500
+  }'
+```
+
+```bash
+python -m mlx_vlm.server \
+--model "google/gemma-4-E4B-it" \
+--port 8010 \
+--host 0.0.0.0
+
+curl http://127.0.0.1:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mymac" \
+  -d '{
+    "model": "google/gemma-4-E4B-it",
+    "messages": [
+      {
+        "role": "user",
+        "content": "You are a helpful AI assistant. Use exactly one sentence to describe what a Paged KV Cache is."
+      }
+    ],
+    "temperature": 0.4,
+    "max_tokens": 100
+  }'
+```
+
+```
+
 ## oMLX
 Download from https://github.com/jundot/omlx/releases.
 ```bash
