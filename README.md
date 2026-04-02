@@ -17,10 +17,7 @@ The project has been organized to keep code, assets, and results clean:
 - `src/`: Core Python scripts, including custom inference engines, Medusa implementations, and benchmarking scripts.
 - `assets/`: Images and static files used for VLM testing and performance plots.
 - `results/`: Output logs, cost metrics (`.json`), and model weights/cache (`.npz`, `.pth`).
-- `notebooks/`: Directory reserved for Jupyter notebooks (exploratory data analysis & tutorials).
-- `my_process.md`: My personal notes on downloading and converting models.
 
-*(Note: Heavy model weights and external cloned repos like `mlx_clip` are intentionally `.gitignore`d to keep the repository lightweight.)*
 
 ## 🛠️ Getting Started
 
@@ -43,7 +40,202 @@ cd src
 python qwen_vision.py
 ```
 
-*For more detailed steps on model quantization and usage, please refer to [my_process.md](my_process.md).*
+## 📖 Qwen MLX Tutorial
+
+This section provides a step-by-step guide to downloading, running, and quantizing Qwen models using Apple's MLX framework.
+
+### 1. Fast Model Downloading with Hugging Face CLI
+To speed up model downloads, we recommend installing the Hugging Face CLI and enabling `hf_transfer`.
+
+```bash
+# Install the Hugging Face CLI
+curl -LsSf https://hf.co/cli/install.sh | bash
+
+# Enable fast transfer
+export HF_HUB_ENABLE_HF_TRANSFER=1
+
+# Example: Download a CLIP model to a local directory
+hf download --local-dir clip_download mlx-community/clip-vit-base-patch32
+```
+
+### 2. Installing MLX Dependencies
+Depending on whether you are running text-only or vision-language models, you will need `mlx-lm` or `mlx-vlm`.
+
+```bash
+# For standard Language Models (LLMs)
+pip install mlx-lm
+
+# For Vision-Language Models (VLMs)
+pip install -U mlx-vlm
+```
+
+### 3. Text Generation with Qwen LLMs
+You can generate text directly from the command line using the `mlx_lm.generate` module.
+
+```bash
+# Basic generation with a 4-bit quantized Qwen3.5 9B model
+python -m mlx_lm.generate \
+  --model mlx-community/Qwen3.5-9B-OptiQ-4bit \
+  --prompt "Explain quantum computing in simple terms:" \
+  --max-tokens 200
+
+# Chinese prompt example
+python -m mlx_lm.generate \
+    --model mlx-community/Qwen3.5-9B-OptiQ-4bit \
+    --prompt "作为人工智能，你能帮我写一段快排算法的 Python 代码吗？"
+```
+
+### 4. Vision Generation with Qwen VLMs
+For models that understand images (like Qwen Vision), use the `mlx_vlm.generate` module.
+
+```bash
+# Example 1: Basic VLM generation
+python -m mlx_vlm.generate --model mlx-community/Qwen3.5-4B-MLX-4bit --max-tokens 100
+
+# Example 2: Analyzing a specific image
+python -m mlx_vlm generate \
+    --model mlx-community/Qwen3.5-9B-4bit \
+    --image assets/hybrid_eval_accuracy.png \
+    --prompt "Tell me what you see in this image." \
+    --max-tokens 2048 \
+    --temp 0.3
+```
+
+### 5. Quantizing Models to 4-bit
+You can convert standard Hugging Face models to MLX-compatible 4-bit quantized models to save memory and increase inference speed.
+
+```bash
+# Convert Qwen3.5-9B to 4-bit
+mlx_lm.convert --hf-path Qwen/Qwen3.5-9B -q --q-bits 4
+
+# Other examples:
+mlx_lm.convert --hf-path Qwen/Qwen3.5-35B-A3B -q --q-bits 4
+mlx_lm.convert --hf-path Qwen/Qwen3.5-27B -q --q-bits 4
+```
+
+After conversion, your quantized model will be saved in an `mlx_model` directory. You can test the newly converted model like this:
+
+```bash
+mlx_lm.generate \
+    --model mlx_model \
+    --prompt "Use Python to write a basic neural network from scratch via Apple's MLX framework." \
+    --max-tokens 1024
+```
+
+## 💎 Gemma 4 MLX Tutorial
+
+This section provides a step-by-step guide to downloading, running, and quantizing Gemma 4 models using Apple's MLX framework.
+
+### 1. Gemma 4 Architecture Overview
+All Gemma 4 variants share a common, highly optimized architecture:
+- **Sliding + Full Attention**: A repeating pattern of 5 sliding window layers followed by 1 full attention layer.
+- **KV Sharing**: Later layers reuse Key/Value states from earlier layers (specifically in 2B/4B models).
+- **K-eq-V Attention**: Full attention layers use key states as values (in 26B/31B models).
+- **Per-layer Inputs**: Additional per-layer token embeddings (in 2B/4B models).
+- **MoE (Mixture of Experts)**: 128 experts with top-8 routing using `gather_mm` (exclusive to the 26B model).
+- **Multimodal Encoders**: A shared SigLIP2 vision encoder across all variants, and a Conformer audio encoder (12 blocks) for the 2B/4B models.
+
+### 2. Installation
+Since Gemma 4 is very new, it may not be fully supported in the standard release yet. You might need to install the latest development version of `mlx-vlm`.
+
+```bash
+# Upgrade core MLX packages
+pip install --upgrade mlx mlx-lm mlx-vlm
+
+# Uninstall the stable mlx-vlm release
+pip uninstall -y mlx-vlm
+
+# Install the latest main branch from GitHub
+pip install git+https://github.com/Blaizzy/mlx-vlm.git
+```
+
+### 3. Core Capabilities
+
+#### Vision-Language Generation
+Analyze images by passing a local path or URL:
+```bash
+mlx_vlm.generate \
+  --model google/gemma-4-E4B-it \
+  --image https://huggingface.co/datasets/huggingface/documentation-images/resolve/0052a70beed5bf71b92610a43a52df6d286cd5f3/diffusers/rabbit.jpg \
+  --prompt "Describe this image in detail"
+```
+*(Example Performance in M1Max32G: ~56.8 prompt tokens/sec, ~29.4 generation tokens/sec, Peak memory: 16.75 GB)*
+
+#### Text Generation
+Standard text querying:
+```bash
+python -m mlx_vlm.generate \
+  --model google/gemma-4-e4b-it \
+  --prompt "What is the capital of China?" \
+  --max-tokens 500 \
+  --temperature 0
+```
+
+#### Audio Understanding (2B/4B Models Only)
+Gemma 4 (2B/4B) natively supports audio transcription and reasoning:
+```bash
+python -m mlx_vlm.generate \
+  --model google/gemma-4-e4b-it \
+  --audio assets/reply_en.wav \
+  --prompt "Transcribe this audio" \
+  --max-tokens 500 \
+  --temperature 0
+```
+
+#### Thinking Mode (Chain-of-Thought)
+Enable the model's internal reasoning process before outputting the final answer:
+```bash
+python -m mlx_vlm.generate \
+  --model google/gemma-4-e4b-it \
+  --prompt "I want to do a car wash that is 50 meters away, should I walk or drive?" \
+  --enable-thinking \
+  --thinking-budget 512 \
+  --max-tokens 2000 \
+  --temperature 0
+```
+
+### 4. KV Cache Quantization & Experiments
+When running larger models like the 31B variant, quantizing the KV cache is critical for fitting the model into memory. However, extreme quantization can lead to model degradation. Here are the findings from our experiments on an M1 Max (32GB):
+
+#### ❌ The Pitfalls: TurboQuant and Low Bit-rates
+Using experimental features like TurboQuant (https://github.com/Blaizzy/mlx-vlm/tree/pc/turbo-quant) or extremely low KV bits (e.g., 3.5 or 4-bit) can cause the model's attention mechanism to collapse.
+
+```bash
+# Example of a failing configuration (Attention Collapse / Degradation over time)
+# Symptoms: Repeating characters like "額額額額額額....." or "if __- a_ a_ a_"
+mlx_vlm.generate \
+  --model "mlx-community/gemma-4-31b-it-4bit" \
+  --prompt "Help me write a python code to plot a comparison..." \
+  --kv-bits 4 \
+  --max-tokens 2000 \
+  --temperature 0.1
+```
+
+#### ✅ Recommended Configurations
+To avoid quantization degradation while maintaining efficiency, you have two reliable options:
+
+**Option A: Increase KV Cache Precision (8-bit)**
+Using an 8-bit KV cache prevents degradation at the cost of slightly higher memory usage.
+```bash
+mlx_vlm.generate \
+  --model "mlx-community/gemma-4-31b-it-4bit" \
+  --prompt "Help me write a python code to plot a comparison of the accuracy and speedup of speculative decoding." \
+  --kv-bits 8 \
+  --max-tokens 2000 \
+  --temperature 0.1
+```
+*(M1 Max 32G Performance: ~14.78 generation tokens/sec, Peak memory: 19.46 GB)*
+
+**Option B: Increase Temperature (Default Precision)**
+If you must use lower precision, slightly increasing the temperature (e.g., `0.4`) can help the model escape repetitive generation loops.
+```bash
+mlx_vlm.generate \
+  --model "mlx-community/gemma-4-31b-it-4bit" \
+  --prompt "Help me write a python code to plot a comparison of the accuracy and speedup of speculative decoding." \
+  --max-tokens 2000 \
+  --temperature 0.4
+```
+*(M1 Max 32G Performance: ~14.93 generation tokens/sec, Peak memory: 19.44 GB)*
 
 ## 📈 Benchmarks
 
