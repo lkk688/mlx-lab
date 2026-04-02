@@ -1,0 +1,30 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+__pycache__/
+*.pyc
+*.pyo
+
+# Mac
+.DS_Store
+
+# Data and Models
+clip_download/
+mlx_model_qwen35_9b_4bit/
+*.npz
+*.pth
+*.safetensors
+*.bin
+
+# External Repositories
+mlx_clip/
+
+# Logs and Outputs
+*.log
+results_cost.json
+x.json
