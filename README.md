@@ -237,6 +237,76 @@ mlx_vlm.generate \
 ```
 *(M1 Max 32G Performance: ~14.93 generation tokens/sec, Peak memory: 19.44 GB)*
 
+## oMLX
+Download from https://github.com/jundot/omlx/releases.
+```bash
+#find the local model
+find ~/.cache/huggingface/hub/models--mlx-community--gemma-4-31b-it-4bit/snapshots -maxdepth 1 -mindepth 1
+
+/Users/xxx/.cache/huggingface/hub/models--mlx-community--gemma-4-31b-it-4bit/snapshots/535c5606372deb5d5ab7e29280f111ef2a8e084e
+```
+Testing
+```bash
+curl http://127.0.0.1:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mymac" \
+  -d '{
+    "model": "gemma-4-31b-it-4bit",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a helpful AI assistant."
+      },
+      {
+        "role": "user",
+        "content": "Use exactly one sentence to describe what a Paged KV Cache is."
+      }
+    ],
+    "temperature": 0.4,
+    "max_tokens": 100
+  }'
+```
+Output these:
+```bash
+{"id":"chatcmpl-0a71fc2f","object":"chat.completion","created":1775165441,"model":"gemma-4-31b-it-4bit","choices":[{"index":0,"message":{"role":"assistant","content":"ែ ফলে Lately disediakanायचे ফলে ফলে ফলে ফলে Lately Lately額 �ិী ICF額ायचे額額  ायचे บ้าง บ้าง̠額-額額額額額額額ायचे บ้าง บ้าง額額額ायचे บ้างありがとうございましたありがとうございました額額ायचेありがとうございましたありがとうございました̠額 บ้าง candlest額額 額額額額額額額ायचे額額額額額額ायचे額額額額額 及---_---// ಆಗ-�����������","reasoning_content":null,"tool_calls":null},"finish_reason":"length"}],"usage":{"prompt_tokens":39,"completion_tokens":100,"total_tokens":139,"input_tokens":39,"output_tokens":100,"cached_tokens":null,"model_load_duration":null,"time_to_first_token":null,"total_time":null,"prompt_eval_duration":null,"generation_duration":null,"prompt_tokens_per_second":null,"generation_tokens_per_second":null}}
+```
+
+```bash
+curl http://127.0.0.1:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mymac" \
+  -d '{
+    "model": "gemma-4-31b-it-4bit",
+    "messages": [
+      {
+        "role": "user",
+        "content": "You are a helpful AI assistant. Use exactly one sentence to describe what a Paged KV Cache is."
+      }
+    ],
+    "temperature": 0.4,
+    "max_tokens": 100
+  }'
+{"id":"chatcmpl-b0c47694","object":"chat.completion","created":1775165717,"model":"gemma-4-31b-it-4bit","choices":[{"index":0,"message":{"role":"assistant","content":"//ងীងীীងងীীងীীងলীীী//額ীীীপ্রী್ರীীী্পরপ্রীীী্পীরীী্পীীরীীীীরীীীররীীীীর্পীপ্রীীী্পীীীীীীীীীীীীীীীীীীীীীীীীীীীীীীীীীী","reasoning_content":null,"tool_calls":null},"finish_reason":"length"}],"usage":{"prompt_tokens":34,"completion_tokens":100,"total_tokens":134,"input_tokens":34,"output_tokens":100,"cached_tokens":null,"model_load_duration":null,"time_to_first_token":null,"total_time":null,"prompt_eval_duration":null,"generation_duration":null,"prompt_tokens_per_second":null,"generation_tokens_per_second":null}}%
+```
+
+Change to gemma-4-E4B-it:
+```bash
+curl http://127.0.0.1:8010/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer mymac" \
+  -d '{
+    "model": "gemma-4-E4B-it",
+    "messages": [
+      {
+        "role": "user",
+        "content": "You are a helpful AI assistant. Use exactly one sentence to describe what a Paged KV Cache is."
+      }
+    ],
+    "temperature": 0.4,
+    "max_tokens": 100
+  }'
+{"error":{"message":"Internal server error","type":"server_error","param":null,"code":null}}
+```
 ## 📈 Benchmarks
 
 Check out the `assets/` folder for visual plots of our experiments, including accuracy vs. speedup comparisons when using Medusa heads and hybrid evaluation engines.
