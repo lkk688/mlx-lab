@@ -28,3 +28,4 @@ mlx_clip/
 *.log
 results_cost.json
 x.json
+docs/
