@@ -271,6 +271,8 @@ python -m mlx_vlm.server \
 --port 8010 \
 --host 0.0.0.0
 
+
+
 curl http://127.0.0.1:8010/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer mymac" \
@@ -287,7 +289,32 @@ curl http://127.0.0.1:8010/v1/chat/completions \
   }'
 ```
 
+Run our evaluation function:
+```bash
+python -m mlx_vlm.server --model "google/gemma-4-E4B-it" --port 8010 --host 0.0.0.0 --max-kv-size 8192
+
+python src/evaluator_main.py --action speed --model "google/gemma-4-E4B-it" --base-url "http://0.0.0.0:8010/v1" --base-url-name "gemma-4-E4B-it" --output-json results/gemma4_speed.json
+
 ```
+ValueError: [broadcast_shapes] Shapes (1,2048,42,256) and (1,4288,42,256) cannot be broadcast. This means the MLX engine hardcoded or implicitly constrained the KV cache context size internally to exactly 2048 tokens for some attention mechanisms inside google/gemma-4-E4B-it . When you pass a 4096 prompt ( 4288 actual tokens), MLX attempts to broadcast the 4288-length query tensor against a 2048-length cache tensor, causing an immediate shape mismatch crash.
+
+Even though added --max-kv-size 8192 , the underlying gemma-4-E4B-it model logic in mlx_vlm 's current version seems to have a bug where the per_layer_inputs or sliding window attention layers are statically fixed or not dynamically respecting the --max-kv-size override.
+
+Only use "--prefill-tokens 1024" to avoid this issue.
+```bash
+python src/evaluator_main.py --action speed --model "google/gemma-4-E4B-it" --base-url "http://0.0.0.0:8010/v1" --base-url-name "gemma-4-E4B-it" --output-json results/gemma4_e4b_m1maxspeed.json --prefill-tokens 1024
+```
+Success: Data saved to: mlx-lab/results/gemma4_e4b_m1maxspeed.json
+
+```bash
+python -m mlx_vlm.server \
+--model "mlx-community/gemma-4-31b-it-4bit" \
+--port 8080 \
+--host 0.0.0.0
+
+python src/evaluator_main.py --action speed --model "mlx-community/gemma-4-31b-it-4bit" --base-url "http://0.0.0.0:8010/v1" --base-url-name "gemma-4-31b-it-m1max" --output-json results/gemma4_31b_m1maxspeed.json --prefill-tokens 1024
+```
+Data saved to: mlx-lab/results/gemma4_31b_m1maxspeed.json
 
 ## oMLX
 Download from https://github.com/jundot/omlx/releases.
