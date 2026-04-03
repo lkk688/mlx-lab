@@ -316,6 +316,21 @@ python src/evaluator_main.py --action speed --model "mlx-community/gemma-4-31b-i
 ```
 Data saved to: mlx-lab/results/gemma4_31b_m1maxspeed.json
 
+The reason MLX server crashes on prompts larger than 1024 tokens, despite gemma-4-E4B-it officially supporting a 128K context window, comes down to a specific architectural feature of Gemma 4 and how mlx_vlm currently implements it. Based on the official Google DeepMind specs from the Hugging Face page you referenced:
+ Sliding Window:
+- E2B: 512 tokens
+- E4B: 512 tokens
+- 31B: 1024 tokens
+Gemma 4 uses a Hybrid Attention Mechanism that interleaves local sliding window attention (where the model only looks at the last 512 or 1024 tokens) with full global attention layers.
+
+Why the MLX Crash Happens ([broadcast_shapes]): When you send a prompt of 4096 tokens to mlx_vlm :
+
+1. The global attention layers can handle all 4096 tokens just fine (up to 128K).
+2. However, the sliding window attention layers are strictly configured to only cache and process the last 512 tokens (for E4B) or 1024 tokens (for 31B).
+3. Because mlx_vlm 's current implementation of Gemma 4's hybrid architecture is very new, there is a bug in the tensor broadcasting logic during the prefill phase. The MLX engine tries to perform math (broadcasting) between the full prompt tensor (e.g., shape 4288 ) and the sliding window cache tensor (which is statically clamped to the sliding window size, e.g., 1024 or 2048 ), resulting in: ValueError: [broadcast_shapes] Shapes (1,2048,42,256) and (1,4288,42,256) cannot be broadcast.
+
+The model itself supports 128K context, but the MLX backend implementation of the sliding window cache is currently failing to chunk or process prompts larger than the sliding window boundary in a single prefill pass.
+
 ## oMLX
 Download from https://github.com/jundot/omlx/releases.
 ```bash
