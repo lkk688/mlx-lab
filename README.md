@@ -331,6 +331,41 @@ Why the MLX Crash Happens ([broadcast_shapes]): When you send a prompt of 4096 t
 
 The model itself supports 128K context, but the MLX backend implementation of the sliding window cache is currently failing to chunk or process prompts larger than the sliding window boundary in a single prefill pass.
 
+### Do the evaluation for Llama.cpp
+Test the gemma 4 in Llama.cpp on RTX 5090:
+
+```bash
+CUDA_VISIBLE_DEVICES=1 ./build/bin/llama-server \
+  -m ../gemma4/gemma-4-26B-A4B-it-Q4_K_M.gguf \
+  --mmproj ../gemma4/mmproj-gemma-4-26B-A4B-it-f16.gguf \
+  -ngl 99 \
+  -c 65536 \
+  -np 4 \
+  -b 4096 \
+  -ub 4096 \
+  -fa on \
+  --defrag-thold 0.1 \
+  --cache-type-k q8_0 \
+  --cache-type-v q8_0 \
+  --host 0.0.0.0 --port 8011
+
+curl http://100.65.193.60:8011/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gemma-4",
+    "messages": [
+      {"role": "system", "content": "You are a helpful AI assistant and an expert in Deep learning. "},
+      {"role": "user", "content": "Explain what a Paged KV Cache is."}
+    ],
+    "temperature": 0.7,
+    "max_tokens": 1000
+  }'
+
+python src/evaluator_main.py --action speed --model "gemma-4" --base-url "http://100.65.193.60:8011/v1" --base-url-name "gemma-4-llamacpp-rtx5090" --output-json gemma-4-llamacpp-rtx5090.json
+
+```
+Batch 1x4096 (different): TTFT 848.6ms, TPOT 8.1ms, pp TPS 5042.2, tg TPS 123.9
+
 ## oMLX
 Download from https://github.com/jundot/omlx/releases.
 ```bash
